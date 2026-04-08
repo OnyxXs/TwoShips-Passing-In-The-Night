@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -38,7 +39,8 @@
     "roadroller": "2.1.0",
     "rollup": "2.56.3",
     "through2": "4.0.2",
-    "vite": "2.5.6"
+    "vite": "2.5.6",
+    "vitest": "4.1.3"
   },
   "resolutions": {
     "anymatch": "3.1.2",
