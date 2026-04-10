@@ -1,0 +1,116 @@
+name: CI - Two Ships Passing In The Night
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Init output files
+        run: touch unit-output.txt e2e-output.txt
+
+      # Linter
+      - name: Run linter
+        run: npx eslint src/
+        continue-on-error: false
+
+      # Tests unitaires (Vitest)
+      - name: Run unit tests
+        id: unit_tests
+        run: |
+          npm test 2>&1 | tee unit-output.txt
+          echo "## Tests unitaires" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat unit-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: Annotate unit test failures
+        if: always()
+        run: |
+          if grep -q "failed" unit-output.txt; then
+            echo "::error::Des tests unitaires ont échoué."
+          else
+            echo "::notice::Tous les tests unitaires sont passés"
+          fi
+
+      # Tests fonctionnels (Playwright)
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run functional tests
+        id: e2e_tests
+        run: |
+          npm run test:e2e 2>&1 | tee e2e-output.txt
+          echo "## Tests fonctionnels (Playwright)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat e2e-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      - name: e2e test failures
+        if: always()
+        run: |
+          if grep -q "failed" e2e-output.txt; then
+            echo "::error::Des tests fonctionnels ont échoué. Consultez le résumé pour les détails."
+          else
+            echo "::notice::Tous les tests fonctionnels sont passés"
+          fi
+
+      # Audit des dépendances
+      - name: Dependency audit
+        run: |
+          npm audit --audit-level=moderate 2>&1 | tee audit-output.txt || true
+          echo "## Audit des dépendances" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat audit-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # Résumé final
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Résumé" >> $GITHUB_STEP_SUMMARY
+          echo "| Étape | Statut |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          grep -q "failed" unit-output.txt \
+            && echo "| Tests unitaires | Échec |" >> $GITHUB_STEP_SUMMARY \
+            || echo "| Tests unitaires | Succès |" >> $GITHUB_STEP_SUMMARY
+          grep -q "failed" e2e-output.txt \
+            && echo "| Tests fonctionnels | Échec |" >> $GITHUB_STEP_SUMMARY \
+            || echo "| Tests fonctionnels | Succès |" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/twoshipspassinginthenight:latest .
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/twoshipspassinginthenight:latest
