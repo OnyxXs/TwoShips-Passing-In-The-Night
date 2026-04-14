@@ -355,7 +355,7 @@ var player_slideMove = (() => {
   };
 })();
 
-var player_checkJump = player => {
+export var player_checkJump = player => {
   if (player.command.y < 10) {
     // not holding jump
     return false;
