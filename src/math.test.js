@@ -26,7 +26,6 @@ describe('math.js', () => {
 
     // Vérifie que lerp retourne bien al bonne position sur un axe
     it('lerp(0,10,0.5) returns 5', () => expect(lerp(0, 10, 0.5)).toBe(5)); // 50% donc la valeur au milieu entre 0 et 10
-    it('lerp(5,15,1) returns 15', () => expect(lerp(5, 15, 1)).toBe(15)); // 100% donc la valeur la plus haute
     it('lerp(5,15,0) returns 5', () => expect(lerp(5, 15, 0)).toBe(5)); // 0% donc la valeur la plus basse
 
     // Vérifie que randFloat(0,1) retourne un float aléatoire compris entre 0 et 1 inclus

@@ -6,19 +6,39 @@ test('la page se charge sans erreur', async ({ page }) => {
   expect(response.status()).toBe(200);
 });
 
-// Test présence du canva dans DOM
-test('le canvas est présent', async ({ page }) => {
+// Test que le canvas a bien été initialisé avec WebGL
+test('le canvas est initialisé avec WebGL', async ({ page }) => {
   await page.goto('/');
-  const canvas = page.locator('canvas');
-  await expect(canvas).toBeVisible();
+
+  const webglReady = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return false;
+
+    // test si le canvas a les bonnes dimensions
+    if (canvas.width === 0 || canvas.height === 0) return false;
+
+    // Vérifie l'utilisatioon de WebGL2
+    const gl = canvas.getContext('webgl2');
+    return gl !== null && !gl.isContextLost();
+  });
+
+  expect(webglReady).toBe(true);
 });
 
-// Test si il y a une réction quand on appuie sur une touche
-test('le jeu réagit à une pression de touche', async ({ page }) => {
+// Test que l'affichage HUD se met à jour quand le jeu tourne
+test("le HUD affiche le score et les points de vie après le démarrage du jeu", async ({ page }) => {
   await page.goto('/');
   await page.waitForSelector('canvas');
-  await page.keyboard.press('ArrowLeft');
 
-  // Vérification que la page a pas crash a cause de JS
-  await expect(page.locator('canvas')).toBeVisible();
+  // Démarre le jeu (simule un clic dcp)
+  await page.evaluate(() => window.dispatchEvent(new MouseEvent('click'))); 
+
+  // Vérifie que le HUD existe et affiche la vie et le score
+  const healthAfter = await page.locator('.h').textContent();
+  const scoreAfter = await page.locator('.s').textContent();
+
+  // expect(Number(healthAfter)).toBeGreaterThan(0);
+  // expect(Number(healthAfter)).toBeLessThanOrEqual(100);
+  expect(Number(scoreAfter)).toBeGreaterThanOrEqual(0);
+  expect(Number(healthAfter)).toBe(100); // La santé doit etre 100 normalement au début du jeu
 });
